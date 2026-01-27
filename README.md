@@ -56,12 +56,3 @@ sudo ufw allow 7800/tcp   # Acceso al panel Nginx-UI
 sudo ufw allow 22/tcp
 sudo ufw enable
 ````
----
-
-## ⚙️ Estructura de Optimización Aplicada
-Componente,Configuración,Beneficio
-PHP-FPM,pm = static (250 hijos),Cero latencia en asignación de procesos.
-Nginx,worker_connections 10240,Soporta ráfagas masivas de conexiones.
-Sistema,ulimit 65535,"Evita errores de ""Too many open files""."
-Memoria,Zswap (lzo),Mayor capacidad de RAM mediante compresión.
-OPcache,validate_timestamps=0,Máximo rendimiento en producción.
