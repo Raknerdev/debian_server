@@ -33,13 +33,13 @@ Prepara el servidor para el mantenimiento y la estabilidad a largo plazo.
 
 Ejecuta estos comandos directamente desde tu terminal:
 
-# 1. Instalar y Optimizar el Stack Base
+* **Instalar y Optimizar el Stack Base**
 ```bash
 curl -sSL https://raw.githubusercontent.com/Raknerdev/debian_server/main/install.sh | sudo bash
 
 ```
 
-# 2. Configurar Monitoreo y Optimización de Memoria (Zswap)
+* **Configurar Monitoreo y Optimización de Memoria (Zswap)**
 ```bash
 curl -sSL https://raw.githubusercontent.com/Raknerdev/debian_server/main/monitor.sh | sudo bash
 
@@ -56,7 +56,7 @@ sudo ufw allow 443/tcp    # Tráfico Web HTTPS (SSL)
 sudo ufw allow 7800/tcp   # Acceso al panel Nginx-UI
 ```
 
-# Opcional: Asegúrate de tener acceso SSH antes de activar
+* **Opcional: Asegúrate de tener acceso SSH antes de activar**
 ```bash
 sudo ufw allow 22/tcp
 sudo ufw enable
