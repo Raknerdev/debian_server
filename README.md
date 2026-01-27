@@ -35,10 +35,10 @@ Ejecuta estos comandos directamente desde tu terminal:
 
 ```bash
 # 1. Instalar y Optimizar el Stack Base
-curl -sSL [https://raw.githubusercontent.com/Raknerdev/debian_server/refs/heads/main/install.sh](https://raw.githubusercontent.com/Raknerdev/debian_server/refs/heads/main/install.sh) | sudo bash
+curl -sSL https://raw.githubusercontent.com/Raknerdev/debian_server/main/install.sh | sudo bash
 
 # 2. Configurar Monitoreo y Optimización de Memoria (Zswap)
-curl -sSL [https://raw.githubusercontent.com/Raknerdev/debian_server/refs/heads/main/monitor.sh](https://raw.githubusercontent.com/Raknerdev/debian_server/refs/heads/main/monitor.sh) | sudo bash
+curl -sSL https://raw.githubusercontent.com/Raknerdev/debian_server/main/monitor.sh | sudo bash
 
 ````
 ---
