@@ -40,6 +40,7 @@ curl -sSL [https://raw.githubusercontent.com/TU_USUARIO/TU_REPO/main/install.sh]
 # 2. Configurar Monitoreo y Optimización de Memoria (Zswap)
 curl -sSL [https://raw.githubusercontent.com/TU_USUARIO/TU_REPO/main/monitor.sh](https://raw.githubusercontent.com/TU_USUARIO/TU_REPO/main/monitor.sh) | sudo bash
 
+````
 ---
 
 ## 🛡️ Seguridad y Firewall (UFW)
@@ -54,7 +55,7 @@ sudo ufw allow 7800/tcp   # Acceso al panel Nginx-UI
 # Opcional: Asegúrate de tener acceso SSH antes de activar
 sudo ufw allow 22/tcp
 sudo ufw enable
-
+````
 ---
 
 ## ⚙️ Estructura de Optimización Aplicada
