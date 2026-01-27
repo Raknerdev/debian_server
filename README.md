@@ -12,14 +12,21 @@ Este repositorio contiene un ecosistema de automatización diseñado para desple
 ## 📂 Descripción de los Scripts
 
 ### 1. `install.sh` (Despliegue y Tuning)
-Este es el motor principal. Transforma una instalación limpia en un servidor de alto rendimiento eliminando cuellos de botella.
+Este es el motor principal. Transforma una instalación limpia en un servidor de alto rendimiento eliminando cuellos de botella mediante las siguientes acciones:
 
-* **Stack Web:** Instala Nginx y PHP-FPM (excluyendo Apache2 para ahorrar recursos).
-* **Base de Datos & Cache:** Configura extensiones para PostgreSQL y el servidor **Redis** con supervisión de `systemd`.
-* **Tuning de Red:** Eleva `worker_connections` en Nginx a 10,240.
-* **PHP-FPM Static:** Configura un pool fijo de **250 procesos hijos**. Esto elimina la latencia de creación/destrucción de procesos bajo carga masiva.
-* **Kernel:** Ajusta el límite de archivos abiertos (`ulimit`) a 65,535.
-* **Gestión:** Instala Composer y **Nginx-UI** (Panel visual).
+* **Repositorios Oficiales:** Configura las fuentes oficiales de **Redis** y **Node.js (LTS)** para asegurar versiones actualizadas y parches de seguridad recientes.
+* **Stack Web:** Instala Nginx y PHP-FPM, forzando la exclusión de Apache2 para optimizar el consumo de recursos.
+* **Gestión de Dependencias:** Instalación segura de **Composer** mediante verificación dinámica de firma (checksum) para prevenir instaladores corruptos o malintencionados.
+* **Compilación de Assets:** Incluye **Node.js y NPM** para dar soporte nativo a Vite y otras herramientas de frontend modernas.
+* **Base de Datos & Cache:** Configura extensiones para PostgreSQL y el servidor **Redis**, este último optimizado con una política de memoria `allkeys-lru` y supervisión de `systemd`.
+* **Tuning de Red y Kernel:**
+    * Eleva `worker_connections` en Nginx a 10,240.
+    * Optimiza el stack TCP/IP (vía `sysctl`) permitiendo la reutilización de sockets (`tcp_tw_reuse`) y ampliando la cola de conexiones pendientes (`somaxconn`).
+* **Rendimiento PHP (Static Pool & OPcache):**
+    * Configura un pool fijo de **250 procesos hijos**, eliminando la latencia de creación/destrucción de procesos.
+    * Optimiza **OPcache** con 256MB de memoria y `validate_timestamps=0` para servir el código directamente desde la RAM sin consultar el disco.
+* **Límites del Sistema:** Ajusta el límite de archivos abiertos (`ulimit`) a 65,535, permitiendo que el sistema operativo soporte el alto volumen de descriptores de archivos concurrentes.
+* **Interfaz de Gestión:** Instala **Nginx-UI** para la administración visual de servidores, certificados SSL y logs.
 
 ### 2. `monitor.sh` (Observabilidad y Resiliencia)
 Prepara el servidor para el mantenimiento y la estabilidad a largo plazo.
