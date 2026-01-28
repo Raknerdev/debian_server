@@ -109,25 +109,70 @@ sudo ufw allow 9000/tcp   # Acceso al panel Nginx-UI
 sudo ufw allow 22/tcp
 sudo ufw enable
 ```
+---
 
-## 🧠 Guía de Resolución: Zswap y Entornos Virtualizados
+## 🛠 Solución para Entornos Virtualizados (Proxmox / LXC / Docker)
 
-Si al ejecutar `./monitor.sh` recibes errores de `Read-only file system` o `update-grub: command not found`, significa que estás operando en un entorno de virtualización ligera (**LXC / Docker**).
+Si al ejecutar `./monitor.sh` obtienes marcas rojas (❌), errores de `Read-only file system` o `command not found`, es porque estás operando en un entorno de virtualización ligera. Los contenedores comparten el Kernel del host y, por seguridad, tienen restringido el acceso a funciones avanzadas.
 
-### ¿Por qué ocurre esto?
-Los contenedores comparten el Kernel del host. Por seguridad, un contenedor no puede modificar parámetros globales del Kernel como Zswap.
+### 1. Habilitar `iotop` (Netlink / NET_ADMIN)
+Para que `iotop` pueda monitorizar la latencia de disco de procesos como PostgreSQL o Redis dentro de un LXC, debes relajar las restricciones de privilegios desde el servidor físico.
 
-### Solución para Proxmox / Servidores Dedicados
-Para habilitar la compresión de RAM, debes aplicar la configuración en el **HOST físico**:
-
-1. Edita el archivo de arranque en el host: `sudo nano /etc/default/grub`.
-2. Añade los parámetros: `zswap.enabled=1 zswap.compressor=lzo zswap.zpool=zsmalloc` a la variable `GRUB_CMDLINE_LINUX_DEFAULT`.
-3. Actualiza el cargador: `sudo update-grub`.
-4. Reinicia el servidor físico.
-
-### Beneficios en el Stack
-Al activar Zswap en el host, tu aplicación Laravel se beneficia de:
-* **Menor latencia:** La memoria se comprime en RAM en lugar de escribir en el disco SSD/HDD.
-* **Mayor densidad:** Permite que los 250 procesos de PHP-FPM coexistan mejor en situaciones de picos de tráfico sin colapsar la Swap física.
+**En el Host de Proxmox:**
+1. Apaga el contenedor:
+    ```bash
+    pct stop <ID_DEL_CT>
+    ```
+2. Edita el archivo de configuración:
+    ```bash
+    nano /etc/pve/lxc/<ID_DEL_CT>.conf
+    ```
+3. Añade la siguiente línea al final del archivo:
+   ```bash
+    lxc.cap.drop:
+    ```
+4. *(Opcional)* En la interfaz web, ve a **Options > Features** y marca **Nesting**.
+5. Inicia el contenedor:
+    ```bash
+    pct start <ID_DEL_CT>
+    ```
 
 ---
+
+### 2. Habilitar `Zswap` (Configuración de Kernel)
+Zswap debe activarse en el **HOST físico**. Una vez habilitado, el Kernel comprimirá automáticamente las páginas de memoria de todos los contenedores antes de tocar el disco.
+
+**En el Host de Proxmox / Servidor Dedicado:**
+1. Edita el archivo de arranque: `sudo nano /etc/default/grub`.
+    ```bash
+    pct start <ID_DEL_CT>
+    ```
+
+2. Busca la línea:
+    ```bash
+    GRUB_CMDLINE_LINUX_DEFAULT
+    ```
+    Añade los parámetros:
+    ```bash
+    GRUB_CMDLINE_LINUX_DEFAULT="quiet zswap.enabled=1 zswap.compressor=lzo zswap.zpool=zsmalloc"
+    ```
+
+3. Actualiza el cargador y reinicia el servidor físico:
+    ```bash
+    sudo update-grub
+    sudo reboot
+    ```
+---
+
+### 🚀 Beneficios para el Stack de Alto Rendimiento
+Al activar estas funciones en el Host, tu infraestructura Laravel obtiene mejoras críticas:
+
+* **Visibilidad Total**: `iotop` permitirá detectar si los logs de Laravel o las persistencias de Redis están saturando el I/O del disco.
+* **Menor Latencia**: Los datos se comprimen en RAM mediante Zswap, evitando la lentitud de la Swap física en picos de alta concurrencia.
+* **Resiliencia**: Los 250 procesos de PHP-FPM coexisten de forma más eficiente sin riesgo de activar el *OOM Killer* del Kernel.
+
+### Verificación Final
+Vuelve a ejecutar el script dentro de tu contenedor para confirmar que todo esté en verde:
+    ```bash
+    curl -sSL https://raw.githubusercontent.com/Raknerdev/debian_server/main/monitor.sh | sudo bash
+    ```
