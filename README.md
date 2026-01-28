@@ -38,11 +38,24 @@ El script `monitor.sh` incluye un módulo de diagnóstico que verifica la salud 
 * **Zswap INACTIVO:** El sistema está usando Swap tradicional (lenta) o matará procesos si se agota la RAM (OOM Killer). Sigue la **Guía de Configuración en el Host** si ves este mensaje.
 * **Swap Física:** Zswap actúa como un "filtro" antes de la Swap física. Asegúrate de tener al menos 2GB de Swap configurada en tu sistema (incluso en contenedores LXC, esto se gestiona en los recursos del contenedor en la interfaz de Proxmox).
 
-### Herramientas de Monitoreo en Vivo
-Una vez ejecutado el script, puedes usar:
-1. `btop`: Para una visión general estética y moderna.
-2. `nload`: Monitoriza los picos de tráfico de red de tus 2,000 usuarios.
-3. `iotop -o`: Observa qué proceso (Redis/Postgres) está escribiendo más en disco.
+### 📊 Herramientas de Monitoreo en Vivo
+
+Una vez ejecutado el script, tienes a tu disposición este arsenal para gestionar los 2,000 usuarios concurrentes:
+
+1. **`btop`**: La interfaz más avanzada y estética. Permite ver uso de CPU por núcleos, RAM comprimida (Zswap) y procesos en tiempo real con gráficos de alta resolución.
+2. **`htop`**: El estándar de la industria. Ideal para ver rápidamente la carga del sistema y gestionar procesos individuales (matar procesos bloqueados de PHP, por ejemplo).
+3. **`nload`**: Específico para red. Te permite ver el ancho de banda entrante y saliente en tiempo real, fundamental para detectar si los 2,000 usuarios están saturando tu interfaz de red.
+4. **`iotop -o`**: Muestra solo los procesos que están realizando operaciones de escritura/lectura en disco en este momento. Esencial para identificar si Redis o PostgreSQL están causando cuellos de botella.
+5. **`logtail`**: Permite observar el final de un archivo de log y seguir las nuevas líneas que se añaden. Perfecto para monitorizar `storage/logs/laravel.log` o los logs de acceso de Nginx sin saturar la terminal.
+
+---
+
+### 💡 Comandos Rápidos Recomendados
+
+* **Ver tráfico de red:** `nload`
+* **Ver quién escribe en disco:** `iotop -o`
+* **Ver logs de Laravel en vivo:** `logtail -f /ruta/a/tu/laravel/storage/logs/laravel.log`
+* **Panel de control total:** `btop`
 
 ### 4. `laravel-setup.sh` (Optimización de Aplicación)
 El puente final entre el código y el hardware:
