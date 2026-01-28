@@ -16,6 +16,7 @@ Este script prepara el terreno instalando los binarios necesarios desde fuentes 
 * **Repositorios Oficiales:** Configura **Redis** y **Node.js (LTS)** para asegurar parches de seguridad recientes.
 * **Stack Web:** Instalación limpia de Nginx, PHP-FPM y extensiones críticas (`php-redis`, `php-pgsql`, etc.).
 * **Composer Seguro:** Instalación de Composer verificando el checksum dinámico para garantizar la integridad del binario.
+* **Gestión Visual:** Instala **Nginx-UI** para administrar el servidor de forma gráfica.
 
 ### 2. `server-tune.sh` (Sintonización de Infraestructura)
 Aplica la "sintonía fina" al sistema operativo y servicios para eliminar cuellos de botella:
@@ -23,9 +24,6 @@ Aplica la "sintonía fina" al sistema operativo y servicios para eliminar cuello
 * **Optimización de Red y Kernel:** Ajusta el stack TCP/IP vía `sysctl` para permitir la reutilización de sockets y ampliar la cola de conexiones (`somaxconn`).
 * **Rendimiento PHP (Static Pool):** Configura un pool de **250 procesos hijos fijos** y optimiza **OPcache** para servir código directamente desde RAM.
 * **Tuning de Redis:** Configura políticas `allkeys-lru` y aumenta los límites de clientes y memoria.
-* **Gestión Visual:** Instala **Nginx-UI** para administrar el servidor de forma gráfica.
-
-
 
 ### 3. `monitor.sh` (Observabilidad y Resiliencia)
 * **Zswap:** Activa la compresión de memoria RAM para evitar latencia de escritura en disco (Swap física).
