@@ -12,42 +12,43 @@ if [ "$EUID" -ne 0 ]; then
 fi
 
 echo -e "${CYAN}>>> 1. Instalando herramientas de monitoreo...${NC}"
+# Instalamos solo lo esencial, omitiendo errores de paquetes no encontrados
 apt update && apt install -y htop nload iotop btop logtail --no-install-recommends
 
-echo -e "${CYAN}>>> 2. Configurando Zswap...${NC}"
+echo -e "${CYAN}>>> 2. Intentando configurar Zswap...${NC}"
 
-# Verificar si es un contenedor (LXC/Docker)
-IS_CONTAINER=$(systemd-detect-virt --container)
-
-if [ "$?" -eq 0 ]; then
-    echo -e "${YELLOW}⚠️  Entorno de contenedor detectado ($IS_CONTAINER).${NC}"
-    echo -e "${YELLOW}Zswap no puede activarse desde dentro de un contenedor.${NC}"
-    echo -e "Debe activarse en el HOST físico ejecutando: "
-    echo -e "echo 'zswap.enabled=1' >> /etc/default/grub (en el servidor principal)"
-else
-    echo -e "${CYAN}Activando Zswap en hardware real...${NC}"
-    
-    # Intentar activación en caliente
-    echo 1 > /sys/module/zswap/parameters/enabled 2>/dev/null || echo -e "${RED}Fallo al activar en caliente.${NC}"
-    echo lzo > /sys/module/zswap/parameters/compressor 2>/dev/null
-    echo zsmalloc > /sys/module/zswap/parameters/zpool 2>/dev/null
-
-    # Configuración permanente (Solo si existe GRUB)
-    if [ -f /etc/default/grub ]; then
-        if ! grep -q "zswap.enabled=1" /etc/default/grub; then
-            sed -i 's/GRUB_CMDLINE_LINUX_DEFAULT="/GRUB_CMDLINE_LINUX_DEFAULT="zswap.enabled=1 zswap.compressor=lzo zswap.zpool=zsmalloc /' /etc/default/grub
-            update-grub
-            echo -e "${GREEN}Zswap configurado permanentemente en GRUB.${NC}"
-        fi
+# Función para intentar escribir en /sys de forma segura
+safe_write() {
+    if [ -w "$1" ]; then
+        echo "$2" > "$1" 2>/dev/null && echo -e "✅ $1 configurado."
     else
-        echo -e "${YELLOW}No se detectó GRUB. Si usas systemd-boot, añade los parámetros manualmente a la línea de arranque.${NC}"
+        return 1
     fi
+}
+
+# Intentar activar Zswap (fallará silenciosamente si es un contenedor)
+if ! safe_write "/sys/module/zswap/parameters/enabled" "1"; then
+    echo -e "${YELLOW}⚠️  No se puede modificar /sys (Entorno restringido/LXC).${NC}"
+    echo -e "${YELLOW}   Zswap debe activarse desde el HOST físico.${NC}"
+else
+    safe_write "/sys/module/zswap/parameters/compressor" "lzo"
+    safe_write "/sys/module/zswap/parameters/zpool" "zsmalloc"
 fi
 
-echo -e "${CYAN}>>> 3. Resumen de herramientas:${NC}"
-echo -e "${CYAN}htop${NC}   - CPU y procesos."
-echo -e "${CYAN}nload${NC}  - Tráfico de red (2k usuarios)."
-echo -e "${CYAN}btop${NC}   - Dashboard general."
-echo -e "${CYAN}iotop${NC}  - Latencia de disco (Postgres/Redis)."
+# Intentar configurar GRUB solo si el archivo existe
+if [ -f /etc/default/grub ] && command -v update-grub >/dev/null 2>&1; then
+    echo -e "${CYAN}Aplicando configuración permanente en GRUB...${NC}"
+    if ! grep -q "zswap.enabled=1" /etc/default/grub; then
+        sed -i 's/GRUB_CMDLINE_LINUX_DEFAULT="/GRUB_CMDLINE_LINUX_DEFAULT="zswap.enabled=1 zswap.compressor=lzo zswap.zpool=zsmalloc /' /etc/default/grub
+        update-grub
+    fi
+else
+    echo -e "${YELLOW}ℹ️  GRUB no detectado o inaccesible. Omitiendo configuración de arranque.${NC}"
+fi
 
-echo -e "${CYAN}>>> Proceso finalizado.${NC}"
+echo -e "${CYAN}>>> 3. Resumen de herramientas instaladas:${NC}"
+echo -e "   - ${CYAN}htop / btop:${NC} Monitoreo de CPU y procesos."
+echo -e "   - ${CYAN}nload:${NC} Tráfico de red en tiempo real."
+echo -e "   - ${CYAN}iotop:${NC} Actividad de lectura/escritura en disco."
+
+echo -e "${CYAN}>>> Configuración finalizada.${NC}"
