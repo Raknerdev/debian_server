@@ -12,6 +12,22 @@ if [ "$EUID" -ne 0 ]; then
   exit 1
 fi
 
+echo -e "${CYAN}>>> Configurando Locales (UTF-8) para btop...${NC}"
+# Instalar paquete de locales si no existe
+apt install -y locales --no-install-recommends
+
+# Generar y configurar en_US.UTF-8
+sed -i '/en_US.UTF-8 UTF-8/s/^# //g' /etc/locale.gen
+locale-gen en_US.UTF-8
+
+# Aplicar variables de entorno para la sesión
+export LANG=en_US.UTF-8
+export LC_ALL=en_US.UTF-8
+export LANGUAGE=en_US.UTF-8
+
+# Hacerlo permanente para el sistema
+update-locale LANG=en_US.UTF-8
+
 echo -e "${CYAN}>>> 1. Verificando herramientas de monitoreo...${NC}"
 apt update && apt install -y htop nload iotop btop logtail --no-install-recommends
 
