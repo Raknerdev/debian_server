@@ -34,6 +34,30 @@ Prepara el servidor para el mantenimiento y la estabilidad a largo plazo.
 * **Zswap:** Activa la compresión de memoria RAM. Esto sirve para que, en caso de saturación, el sistema comprima datos en RAM en lugar de escribir en el disco lento (Swap física), manteniendo la velocidad de respuesta.
 * **Tooling Pro:** Instala `btop`, `nload`, `htop` e `iotop` para monitorear CPU, Tráfico de Red y escritura en disco en tiempo real.
 
+### 3. `laravel-setup.sh` (Optimización de Aplicación)
+Este script cierra la brecha entre la infraestructura y el código, configurando el proyecto Laravel para aprovechar al máximo **Redis** y **PgBouncer** (Pool de conexiones).
+
+* **Configuración Redis (phpredis):**
+    * Fuerza el uso del cliente `phpredis` (extensión nativa de C) en lugar de la librería de Composer, reduciendo drásticamente el uso de CPU y la latencia.
+    * Migra automáticamente los drivers de `CACHE`, `SESSION` y `QUEUE` hacia Redis para minimizar tiempos de respuesta.
+* **Integración con PgBouncer (Transaction Mode):**
+    * Reconfigura el puerto de base de datos al `6432` y ajusta las variables de entorno para operar en modo pool de transacciones.
+    * **Seguridad en el Pool:** Desactiva `DB_PREPARED_STATEMENTS` para evitar colisiones de memoria en el servidor de base de datos cuando múltiples procesos comparten la misma conexión física.
+* **Tuning de PDO (Emulated Prepares):**
+    * Inyecta quirúrgicamente en `config/database.php` el bloque de opciones `PDO::ATTR_EMULATE_PREPARES => true`.
+    * Esto permite que PHP ensamble las consultas localmente antes de enviarlas, eliminando los errores de protocolo `"prepared statement already exists"` comunes en entornos con balanceo de conexiones.
+* **Higiene de Configuración:** Finaliza con una limpieza automática de caché interna (`config:clear`) para asegurar la persistencia de los cambios.
+
+---
+
+## 🚀 Flujo de Ejecución Recomendado
+
+Para un despliegue óptimo, sigue este orden:
+
+1.  **Configurar el Servidor:** Ejecuta `./install.sh` en tu nueva instancia.
+2.  **Optimizar el Sistema:** Ejecuta `./monitor.sh` para activar Zswap y herramientas de monitoreo.
+3.  **Configurar la App:** Una vez clonado tu proyecto Laravel, ejecuta `./laravel-setup.sh` e ingresa la ruta del proyecto.
+
 ---
 
 ## 🚀 Instalación Rápida
@@ -49,7 +73,11 @@ curl -sSL https://raw.githubusercontent.com/Raknerdev/debian_server/main/install
 * **Configurar Monitoreo y Optimización de Memoria (Zswap)**
 ```bash
 curl -sSL https://raw.githubusercontent.com/Raknerdev/debian_server/main/monitor.sh | sudo bash
+```
 
+* **Optimización de Aplicación Laravel**
+```bash
+curl -sSL https://raw.githubusercontent.com/Raknerdev/debian_server/main/laravel-setup.sh | sudo bash
 ```
 ---
 
