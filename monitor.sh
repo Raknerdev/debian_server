@@ -63,6 +63,13 @@ else
     echo -ne "❌ ${CYAN}btop${NC}   - Dashboard general: " && echo -e "${RED}ERROR DE LOCALE${NC}"
 fi
 
+# Prueba logtail
+if command -v logtail >/dev/null 2>&1; then
+    echo -ne "✅ ${CYAN}logtail${NC} - Debug de logs en vivo: " && echo -e "${GREEN}FUNCIONAL${NC}"
+else
+    echo -ne "❌ ${CYAN}logtail${NC} - Debug de logs en vivo: " && echo -e "${RED}NO ENCONTRADO${NC}"
+fi
+
 # Prueba iotop (Netlink Check)
 if iotop -b -n 1 >/dev/null 2>&1; then
     echo -ne "✅ ${CYAN}iotop${NC}  - Latencia de disco (Postgres/Redis): " && echo -e "${GREEN}FUNCIONAL${NC}"
@@ -78,7 +85,6 @@ else
     echo -ne "❌ ${CYAN}Zswap${NC}  - Compresión de RAM: " && echo -e "${RED}SOLO LECTURA (LXC)${NC}"
     echo -e "      ${YELLOW}└─ Solución: Configurar en /etc/default/grub del HOST.${NC}"
 fi
-
 
 
 echo -e "\n${GREEN}>>> Configuración finalizada. Usa los comandos anteriores para monitorear.${NC}"
