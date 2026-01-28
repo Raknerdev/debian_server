@@ -29,24 +29,26 @@ Aplica la "sintonía fina" al sistema operativo y servicios para eliminar cuello
 * **Zswap:** Activa la compresión de memoria RAM para evitar latencia de escritura en disco (Swap física).
 * **Tooling Pro:** Instala `btop`, `nload` y otros monitores de tráfico y CPU en tiempo real.
 
-## 📊 Diagnóstico de Rendimiento
+## 📊 Diagnóstico y Monitoreo de Rendimiento
 
-El script `monitor.sh` incluye un módulo de diagnóstico que verifica la salud de la optimización de memoria. 
+El script `monitor.sh` incluye un módulo de diagnóstico que verifica la salud de la optimización de memoria y prepara el entorno para soportar hasta 2,000 usuarios concurrentes.
 
-### Interpretación de Resultados:
-* **Zswap ACTIVO:** El servidor está comprimiendo las páginas de memoria inactivas en la RAM. Esto reduce el uso de I/O de disco y acelera Laravel en momentos de alta concurrencia.
-* **Zswap INACTIVO:** El sistema está usando Swap tradicional (lenta) o matará procesos si se agota la RAM (OOM Killer). Sigue la **Guía de Configuración en el Host** si ves este mensaje.
-* **Swap Física:** Zswap actúa como un "filtro" antes de la Swap física. Asegúrate de tener al menos 2GB de Swap configurada en tu sistema (incluso en contenedores LXC, esto se gestiona en los recursos del contenedor en la interfaz de Proxmox).
+### 🔍 Interpretación de Resultados de Memoria
+* **Zswap ACTIVO:** ✅ El servidor está comprimiendo las páginas de memoria inactivas en la RAM. Esto reduce el uso de I/O de disco y acelera Laravel significativamente en momentos de alta concurrencia.
+* **Zswap INACTIVO:** ❌ El sistema está usando Swap tradicional (lenta) o corre el riesgo de activar el *OOM Killer* (cierre forzado de procesos). Si ves este mensaje, consulta la **Guía de Configuración en el Host**.
+* **Swap Física:** Zswap actúa como un "filtro" antes de la Swap física. Se recomienda tener al menos **2GB de Swap** configurada (en contenedores LXC, esto se gestiona en los recursos del contenedor desde la interfaz de Proxmox).
 
-### 📊 Herramientas de Monitoreo en Vivo
+---
 
-Una vez ejecutado el script, tienes a tu disposición este arsenal para gestionar los 2,000 usuarios concurrentes:
+### 🛠️ Herramientas de Monitoreo en Vivo
 
-1. **`btop`**: La interfaz más avanzada y estética. Permite ver uso de CPU por núcleos, RAM comprimida (Zswap) y procesos en tiempo real con gráficos de alta resolución.
-2. **`htop`**: El estándar de la industria. Ideal para ver rápidamente la carga del sistema y gestionar procesos individuales (matar procesos bloqueados de PHP, por ejemplo).
-3. **`nload`**: Específico para red. Te permite ver el ancho de banda entrante y saliente en tiempo real, fundamental para detectar si los 2,000 usuarios están saturando tu interfaz de red.
-4. **`iotop -o`**: Muestra solo los procesos que están realizando operaciones de escritura/lectura en disco en este momento. Esencial para identificar si Redis o PostgreSQL están causando cuellos de botella.
-5. **`logtail`**: Permite observar el final de un archivo de log y seguir las nuevas líneas que se añaden. Perfecto para monitorizar `storage/logs/laravel.log` o los logs de acceso de Nginx sin saturar la terminal.
+Tras ejecutar el script, dispondrás de las siguientes herramientas para gestionar el tráfico y la estabilidad:
+
+1. **`btop`**: La interfaz más avanzada y estética. Visualiza el uso de CPU por núcleos, RAM comprimida (Zswap) y procesos en tiempo real con gráficos de alta resolución.
+2. **`htop`**: El estándar de la industria. Ideal para inspeccionar la carga del sistema y gestionar procesos individuales (como liberar procesos bloqueados de PHP-FPM).
+3. **`nload`**: Monitor de red en tiempo real. Fundamental para detectar si los picos de tráfico de tus 2,000 usuarios están saturando el ancho de banda.
+4. **`iotop -o`**: Muestra solo procesos con actividad de disco activa. Esencial para identificar si Redis o PostgreSQL están causando cuellos de botella en las escrituras.
+5. **`logtail`**: Monitor de logs ligero. Perfecto para seguir `storage/logs/laravel.log` o los accesos de Nginx en vivo sin consumir recursos excesivos de la terminal.
 
 ---
 
@@ -63,6 +65,7 @@ El puente final entre el código y el hardware:
 * **Modo PgBouncer:** Ajusta el puerto a `6432` y desactiva `DB_PREPARED_STATEMENTS`.
 * **PDO Emulated Prepares:** Inyecta `PDO::ATTR_EMULATE_PREPARES => true` para garantizar estabilidad total en pools de conexiones.
 
+
 ---
 
 ## 🚀 Flujo de Ejecución Recomendado
@@ -71,6 +74,7 @@ El puente final entre el código y el hardware:
 2.  **Sintonizar Servidor:** `./server-tune.sh`
 3.  **Activar Monitoreo:** `./monitor.sh`
 4.  **Optimizar App Laravel:** `./laravel-setup.sh` (Ejecutar en la raíz del proyecto).
+
 
 ---
 
@@ -122,6 +126,8 @@ sudo ufw allow 9000/tcp   # Acceso al panel Nginx-UI
 sudo ufw allow 22/tcp
 sudo ufw enable
 ```
+
+
 ---
 
 ## 🛠 Solución para Entornos Virtualizados (Proxmox / LXC / Docker)
@@ -150,8 +156,6 @@ Para que `iotop` pueda monitorizar la latencia de disco de procesos como Postgre
     pct start <ID_DEL_CT>
     ```
 
----
-
 ### 2. Habilitar `Zswap` (Configuración de Kernel)
 Zswap debe activarse en el **HOST físico**. Una vez habilitado, el Kernel comprimirá automáticamente las páginas de memoria de todos los contenedores antes de tocar el disco.
 
@@ -175,7 +179,6 @@ Zswap debe activarse en el **HOST físico**. Una vez habilitado, el Kernel compr
     sudo update-grub
     sudo reboot
     ```
----
 
 ### 🚀 Beneficios para el Stack de Alto Rendimiento
 Al activar estas funciones en el Host, tu infraestructura Laravel obtiene mejoras críticas:
