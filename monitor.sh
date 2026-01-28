@@ -2,32 +2,52 @@
 
 # Colores
 CYAN='\033[0;36m'
+YELLOW='\033[1;33m'
+RED='\033[0;31m'
 NC='\033[0m'
 
 if [ "$EUID" -ne 0 ]; then 
-  echo "Ejecuta como root."
+  echo -e "${RED}Ejecuta como root.${NC}"
   exit 1
 fi
 
 echo -e "${CYAN}>>> 1. Instalando herramientas de monitoreo...${NC}"
-# htop: Procesos y RAM | nload: Tráfico de red | iotop: Uso de Disco | glitcher: Logs
-apt update && apt install -y htop nload iotop btop logtail
+apt update && apt install -y htop nload iotop btop logtail --no-install-recommends
 
-echo -e "${CYAN}>>> 2. Activando y configurando Zswap...${NC}"
-# Activar zswap
-echo 1 > /sys/module/zswap/parameters/enabled
-# Usar el compresor lzo (rápido) y el pool zsmalloc (eficiente)
-echo lzo > /sys/module/zswap/parameters/compressor
-echo zsmalloc > /sys/module/zswap/parameters/zpool
+echo -e "${CYAN}>>> 2. Configurando Zswap...${NC}"
 
-# Hacer que Zswap sea permanente tras reinicios
-sed -i 's/GRUB_CMDLINE_LINUX_DEFAULT="/GRUB_CMDLINE_LINUX_DEFAULT="zswap.enabled=1 zswap.compressor=lzo zswap.zpool=zsmalloc /' /etc/default/grub
-update-grub
+# Verificar si es un contenedor (LXC/Docker)
+IS_CONTAINER=$(systemd-detect-virt --container)
 
-echo -e "${CYAN}>>> 3. Resumen de herramientas instaladas:${NC}"
-echo -e "${CYAN}htop${NC}   - Ver consumo de CPU y procesos PHP."
-echo -e "${CYAN}nload${NC}  - Ver ancho de banda ocupado por los 2000 usuarios."
-echo -e "${CYAN}btop${NC}   - Interfaz moderna para estadísticas generales."
-echo -e "${CYAN}iotop${NC}  - Ver si Redis o Postgres están saturando el disco."
+if [ "$?" -eq 0 ]; then
+    echo -e "${YELLOW}⚠️  Entorno de contenedor detectado ($IS_CONTAINER).${NC}"
+    echo -e "${YELLOW}Zswap no puede activarse desde dentro de un contenedor.${NC}"
+    echo -e "Debe activarse en el HOST físico ejecutando: "
+    echo -e "echo 'zswap.enabled=1' >> /etc/default/grub (en el servidor principal)"
+else
+    echo -e "${CYAN}Activando Zswap en hardware real...${NC}"
+    
+    # Intentar activación en caliente
+    echo 1 > /sys/module/zswap/parameters/enabled 2>/dev/null || echo -e "${RED}Fallo al activar en caliente.${NC}"
+    echo lzo > /sys/module/zswap/parameters/compressor 2>/dev/null
+    echo zsmalloc > /sys/module/zswap/parameters/zpool 2>/dev/null
 
-echo -e "${CYAN}>>> Configuración de monitoreo y Zswap completada.${NC}"
+    # Configuración permanente (Solo si existe GRUB)
+    if [ -f /etc/default/grub ]; then
+        if ! grep -q "zswap.enabled=1" /etc/default/grub; then
+            sed -i 's/GRUB_CMDLINE_LINUX_DEFAULT="/GRUB_CMDLINE_LINUX_DEFAULT="zswap.enabled=1 zswap.compressor=lzo zswap.zpool=zsmalloc /' /etc/default/grub
+            update-grub
+            echo -e "${GREEN}Zswap configurado permanentemente en GRUB.${NC}"
+        fi
+    else
+        echo -e "${YELLOW}No se detectó GRUB. Si usas systemd-boot, añade los parámetros manualmente a la línea de arranque.${NC}"
+    fi
+fi
+
+echo -e "${CYAN}>>> 3. Resumen de herramientas:${NC}"
+echo -e "${CYAN}htop${NC}   - CPU y procesos."
+echo -e "${CYAN}nload${NC}  - Tráfico de red (2k usuarios)."
+echo -e "${CYAN}btop${NC}   - Dashboard general."
+echo -e "${CYAN}iotop${NC}  - Latencia de disco (Postgres/Redis)."
+
+echo -e "${CYAN}>>> Proceso finalizado.${NC}"
