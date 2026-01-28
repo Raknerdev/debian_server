@@ -68,7 +68,7 @@ if iotop -b -n 1 >/dev/null 2>&1; then
     echo -ne "✅ ${CYAN}iotop${NC}  - Latencia de disco (Postgres/Redis): " && echo -e "${GREEN}FUNCIONAL${NC}"
 else
     echo -ne "❌ ${CYAN}iotop${NC}  - Latencia de disco: " && echo -e "${RED}LIMITADO (LXC Netlink Error)${NC}"
-    echo -e "      ${YELLOW}└─ Solución: Activa 'Nesting' y privilegios en el Host Proxmox.${NC}"
+    echo -e "      ${YELLOW}└─ Solución: Activa 'Nesting' y privilegios en el Host.${NC}"
 fi
 
 # Prueba Zswap
@@ -76,7 +76,7 @@ if [ $ZSWAP_REQ -eq 0 ]; then
     echo -ne "✅ ${CYAN}Zswap${NC}  - Compresión de RAM: " && echo -e "${GREEN}ACTIVO${NC}"
 else
     echo -ne "❌ ${CYAN}Zswap${NC}  - Compresión de RAM: " && echo -e "${RED}SOLO LECTURA (LXC)${NC}"
-    echo -e "      ${YELLOW}└─ Solución: Configurar en /etc/default/grub del HOST Proxmox.${NC}"
+    echo -e "      ${YELLOW}└─ Solución: Configurar en /etc/default/grub del HOST.${NC}"
 fi
 
 
