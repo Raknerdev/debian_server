@@ -99,15 +99,31 @@ sed -i 's/;opcache.validate_timestamps=.*/opcache.validate_timestamps=0/' $PHP_I
 # --- 8. NGINX & NGINX-UI ---
 echo -e "${BLUE}>>> Optimizando Nginx e instalando Nginx-UI...${NC}"
 
-# Ajustar conexiones y límite de archivos para el proceso Nginx
+# Obtener número de núcleos
+CPU_CORES=$(nproc)
+
+# 1. Configurar worker_processes y afinidad de CPU
+sed -i "s/worker_processes.*/worker_processes $CPU_CORES;/" /etc/nginx/nginx.conf
+
+# Insertar afinidad automática si no existe
+if ! grep -q "worker_cpu_affinity" /etc/nginx/nginx.conf; then
+    sed -i "/worker_processes/a worker_cpu_affinity auto;" /etc/nginx/nginx.conf
+fi
+
+# 2. Ajustar límite de archivos (Debe ser al menos el doble de worker_connections)
+# Borramos líneas previas para evitar duplicados si se re-ejecuta
+sed -i '/worker_rlimit_nofile/d' /etc/nginx/nginx.conf
+sed -i "/worker_processes/a worker_rlimit_nofile 30000;" /etc/nginx/nginx.conf
+
+# 3. Ajustar conexiones en el bloque events
 sed -i 's/worker_connections .*/worker_connections 10240;/' /etc/nginx/nginx.conf
 
-# Insertar worker_rlimit_nofile después de worker_processes
-sed -i '/worker_processes/a worker_rlimit_nofile 20000;' /etc/nginx/nginx.conf
-
-# Asegurar multi_accept en el bloque events
-if ! grep -q "multi_accept on;" /etc/nginx/nginx.conf; then
-    sed -i '/events {/a \    multi_accept on;' /etc/nginx/nginx.conf
+# 4. Gestionar multi_accept (Se deja comentado para mejor balanceo de carga)
+# Primero eliminamos cualquier instancia activa para limpiar
+sed -i '/multi_accept on;/d' /etc/nginx/nginx.conf
+# Insertamos la opción comentada como referencia técnica
+if ! grep -q "multi_accept" /etc/nginx/nginx.conf; then
+    sed -i '/events {/a \    # multi_accept on;' /etc/nginx/nginx.conf
 fi
 
 systemctl restart php$PHP_VAL-fpm

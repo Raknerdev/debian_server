@@ -1,6 +1,6 @@
 # 🚀 Debian 13 Laravel High-Performance Stack
 
-Este repositorio contiene un ecosistema de automatización diseñado para desplegar aplicaciones **Laravel** bajo condiciones de carga extrema en **Debian 13 (Trixie)**. El sistema está optimizado para manejar una concurrencia de hasta **2,000 usuarios constantes**.
+Este repositorio contiene un ecosistema de automatización diseñado para desplegar aplicaciones **Laravel** bajo condiciones de carga extrema en **Debian 13 (Trixie)**. El sistema está optimizado para manejar una concurrencia masiva de hasta **2,000 usuarios constantes**.
 
 ## 🛠 Requisitos de Hardware
 - **Mínimo:** 8GB RAM.
@@ -11,52 +11,40 @@ Este repositorio contiene un ecosistema de automatización diseñado para desple
 
 ## 📂 Descripción de los Scripts
 
-### 1. `install.sh` (Despliegue y Tuning)
-Este es el motor principal. Transforma una instalación limpia en un servidor de alto rendimiento eliminando cuellos de botella mediante las siguientes acciones:
+### 1. `server-install.sh` (Aprovisionamiento)
+Este script prepara el terreno instalando los binarios necesarios desde fuentes oficiales:
+* **Repositorios Oficiales:** Configura **Redis** y **Node.js (LTS)** para asegurar parches de seguridad recientes.
+* **Stack Web:** Instalación limpia de Nginx, PHP-FPM y extensiones críticas (`php-redis`, `php-pgsql`, etc.).
+* **Composer Seguro:** Instalación de Composer verificando el checksum dinámico para garantizar la integridad del binario.
 
-* **Repositorios Oficiales:** Configura las fuentes oficiales de **Redis** y **Node.js (LTS)** para asegurar versiones actualizadas y parches de seguridad recientes.
-* **Stack Web:** Instala Nginx y PHP-FPM, forzando la exclusión de Apache2 para optimizar el consumo de recursos.
-* **Gestión de Dependencias:** Instalación segura de **Composer** mediante verificación dinámica de firma (checksum) para prevenir instaladores corruptos o malintencionados.
-* **Compilación de Assets:** Incluye **Node.js y NPM** para dar soporte nativo a Vite y otras herramientas de frontend modernas.
-* **Base de Datos & Cache:** Configura extensiones para PostgreSQL y el servidor **Redis**, este último optimizado con una política de memoria `allkeys-lru` y supervisión de `systemd`.
-* **Tuning de Red y Kernel:**
-    * Eleva `worker_connections` en Nginx a 10,240.
-    * Optimiza el stack TCP/IP (vía `sysctl`) permitiendo la reutilización de sockets (`tcp_tw_reuse`) y ampliando la cola de conexiones pendientes (`somaxconn`).
-* **Rendimiento PHP (Static Pool & OPcache):**
-    * Configura un pool fijo de **250 procesos hijos**, eliminando la latencia de creación/destrucción de procesos.
-    * Optimiza **OPcache** con 256MB de memoria y `validate_timestamps=0` para servir el código directamente desde la RAM sin consultar el disco.
-* **Límites del Sistema:** Ajusta el límite de archivos abiertos (`ulimit`) a 65,535, permitiendo que el sistema operativo soporte el alto volumen de descriptores de archivos concurrentes.
-* **Interfaz de Gestión:** Instala **Nginx-UI** para la administración visual de servidores, certificados SSL y logs.
+### 2. `server-tune.sh` (Sintonización de Infraestructura)
+Aplica la "sintonía fina" al sistema operativo y servicios para eliminar cuellos de botella:
+* **Tuning de Procesos (Afinidad de Hardware):** Implementa `worker_cpu_affinity auto` en Nginx para vincular procesos a núcleos físicos, optimizando la caché L1/L2.
+* **Optimización de Red y Kernel:** Ajusta el stack TCP/IP vía `sysctl` para permitir la reutilización de sockets y ampliar la cola de conexiones (`somaxconn`).
+* **Rendimiento PHP (Static Pool):** Configura un pool de **250 procesos hijos fijos** y optimiza **OPcache** para servir código directamente desde RAM.
+* **Tuning de Redis:** Configura políticas `allkeys-lru` y aumenta los límites de clientes y memoria.
+* **Gestión Visual:** Instala **Nginx-UI** para administrar el servidor de forma gráfica.
 
-### 2. `monitor.sh` (Observabilidad y Resiliencia)
-Prepara el servidor para el mantenimiento y la estabilidad a largo plazo.
 
-* **Zswap:** Activa la compresión de memoria RAM. Esto sirve para que, en caso de saturación, el sistema comprima datos en RAM en lugar de escribir en el disco lento (Swap física), manteniendo la velocidad de respuesta.
-* **Tooling Pro:** Instala `btop`, `nload`, `htop` e `iotop` para monitorear CPU, Tráfico de Red y escritura en disco en tiempo real.
 
-### 3. `laravel-setup.sh` (Optimización de Aplicación)
-Este script cierra la brecha entre la infraestructura y el código, configurando el proyecto Laravel para aprovechar al máximo **Redis** y **PgBouncer** (Pool de conexiones).
+### 3. `monitor.sh` (Observabilidad y Resiliencia)
+* **Zswap:** Activa la compresión de memoria RAM para evitar latencia de escritura en disco (Swap física).
+* **Tooling Pro:** Instala `btop`, `nload` y otros monitores de tráfico y CPU en tiempo real.
 
-* **Configuración Redis (phpredis):**
-    * Fuerza el uso del cliente `phpredis` (extensión nativa de C) en lugar de la librería de Composer, reduciendo drásticamente el uso de CPU y la latencia.
-    * Migra automáticamente los drivers de `CACHE`, `SESSION` y `QUEUE` hacia Redis para minimizar tiempos de respuesta.
-* **Integración con PgBouncer (Transaction Mode):**
-    * Reconfigura el puerto de base de datos al `6432` y ajusta las variables de entorno para operar en modo pool de transacciones.
-    * **Seguridad en el Pool:** Desactiva `DB_PREPARED_STATEMENTS` para evitar colisiones de memoria en el servidor de base de datos cuando múltiples procesos comparten la misma conexión física.
-* **Tuning de PDO (Emulated Prepares):**
-    * Inyecta quirúrgicamente en `config/database.php` el bloque de opciones `PDO::ATTR_EMULATE_PREPARES => true`.
-    * Esto permite que PHP ensamble las consultas localmente antes de enviarlas, eliminando los errores de protocolo `"prepared statement already exists"` comunes en entornos con balanceo de conexiones.
-* **Higiene de Configuración:** Finaliza con una limpieza automática de caché interna (`config:clear`) para asegurar la persistencia de los cambios.
+### 4. `laravel-setup.sh` (Optimización de Aplicación)
+El puente final entre el código y el hardware:
+* **phpredis Nativo:** Configura el cliente de C para Redis en lugar de la librería PHP, bajando la latencia.
+* **Modo PgBouncer:** Ajusta el puerto a `6432` y desactiva `DB_PREPARED_STATEMENTS`.
+* **PDO Emulated Prepares:** Inyecta `PDO::ATTR_EMULATE_PREPARES => true` para garantizar estabilidad total en pools de conexiones.
 
 ---
 
 ## 🚀 Flujo de Ejecución Recomendado
 
-Para un despliegue óptimo, sigue este orden:
-
-1.  **Configurar el Servidor:** Ejecuta `./install.sh` en tu nueva instancia.
-2.  **Optimizar el Sistema:** Ejecuta `./monitor.sh` para activar Zswap y herramientas de monitoreo.
-3.  **Configurar la App:** Una vez clonado tu proyecto Laravel, ejecuta `./laravel-setup.sh` e ingresa la ruta del proyecto.
+1.  **Instalar Paquetes:** `./server-install.sh`
+2.  **Sintonizar Servidor:** `./server-tune.sh`
+3.  **Activar Monitoreo:** `./monitor.sh`
+4.  **Optimizar App Laravel:** `./laravel-setup.sh` (Ejecutar en la raíz del proyecto).
 
 ---
 
@@ -64,18 +52,30 @@ Para un despliegue óptimo, sigue este orden:
 
 Ejecuta estos comandos directamente desde tu terminal:
 
-* **Instalar y Optimizar el Stack Base**
+* **Instalar y Sintonizar el Stack Base (All in One)**
 ```bash
 curl -sSL https://raw.githubusercontent.com/Raknerdev/debian_server/main/install.sh | sudo bash
 
 ```
 
-* **Configurar Monitoreo y Optimización de Memoria (Zswap)**
+* **Instalar el Stack Base**
+```bash
+curl -sSL https://raw.githubusercontent.com/Raknerdev/debian_server/main/server-install.sh | sudo bash
+
+```
+
+* **Sintonizar Hardware y Red**
+```bash
+curl -sSL https://raw.githubusercontent.com/Raknerdev/debian_server/main/server-tune.sh | sudo bash
+
+```
+
+* **Configurar Monitoreo y Zswap**
 ```bash
 curl -sSL https://raw.githubusercontent.com/Raknerdev/debian_server/main/monitor.sh | sudo bash
 ```
 
-* **Optimización de Aplicación Laravel**
+* **Optimización de Proyecto Laravel**
 ```bash
 curl -sSL https://raw.githubusercontent.com/Raknerdev/debian_server/main/laravel-setup.sh | sudo bash
 ```
