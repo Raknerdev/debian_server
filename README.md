@@ -88,7 +88,7 @@ Es fundamental abrir los puertos necesarios para que Laravel y el panel de admin
 ```bash
 sudo ufw allow 80/tcp     # Tráfico Web HTTP
 sudo ufw allow 443/tcp    # Tráfico Web HTTPS (SSL)
-sudo ufw allow 7800/tcp   # Acceso al panel Nginx-UI
+sudo ufw allow 9000/tcp   # Acceso al panel Nginx-UI
 ```
 
 * **Opcional: Asegúrate de tener acceso SSH antes de activar**
