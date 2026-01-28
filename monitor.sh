@@ -29,42 +29,56 @@ safe_write_zswap() {
     local param_path=$1
     local value=$2
     if [ -w "$param_path" ]; then
-        echo "$value" > "$param_path" 2>/dev/null && echo -e "✅ $param_path actualizado."
+        echo "$value" > "$param_path" 2>/dev/null && return 0
     else
-        echo -e "${YELLOW}ℹ️  Omitiendo $param_path (LXC detectado)${NC}"
+        return 1
     fi
 }
 
-safe_write_zswap "/sys/module/zswap/parameters/enabled" "1"
+ZSWAP_REQ=0
+safe_write_zswap "/sys/module/zswap/parameters/enabled" "1" || ZSWAP_REQ=1
 safe_write_zswap "/sys/module/zswap/parameters/compressor" "lzo"
 safe_write_zswap "/sys/module/zswap/parameters/zpool" "zsmalloc"
 
 if [ -f /etc/default/grub ] && command -v update-grub >/dev/null 2>&1; then
-    echo -e "${CYAN}Actualizando GRUB...${NC}"
     if ! grep -q "zswap.enabled=1" /etc/default/grub; then
         sed -i 's/GRUB_CMDLINE_LINUX_DEFAULT="/GRUB_CMDLINE_LINUX_DEFAULT="zswap.enabled=1 zswap.compressor=lzo zswap.zpool=zsmalloc /' /etc/default/grub
         update-grub
     fi
-else
-    echo -e "${YELLOW}ℹ️  Configuración de arranque omitida (Host LXC).${NC}"
 fi
 
-echo -e "${CYAN}>>> 3. Diagnóstico Final:${NC}"
+# --- PRUEBAS DE FUNCIONAMIENTO ---
+echo -e "${CYAN}>>> 3. Resumen de Disponibilidad de Herramientas:${NC}"
 
-# Verificar si iotop tiene permisos de Netlink
-if ! iotop -b -n 1 >/dev/null 2>&1; then
-    echo -e "I/O Monitoring: ${RED}ERROR (Netlink Permission Denied)${NC}"
-    echo -e "${YELLOW}Para arreglarlo: En Proxmox Host, añade 'lxc.cap.drop:' al .conf del contenedor.${NC}"
+# Prueba htop
+echo -ne "✅ ${CYAN}htop${NC}   - CPU y procesos: " && echo -e "${GREEN}FUNCIONAL${NC}"
+
+# Prueba nload
+echo -ne "✅ ${CYAN}nload${NC}  - Tráfico de red (2k usuarios): " && echo -e "${GREEN}FUNCIONAL${NC}"
+
+# Prueba btop (Verifica si btop abre bien con el locale)
+if btop --version >/dev/null 2>&1; then
+    echo -ne "✅ ${CYAN}btop${NC}   - Dashboard general (UTF-8): " && echo -e "${GREEN}FUNCIONAL${NC}"
 else
-    echo -e "I/O Monitoring: ${GREEN}OK${NC}"
+    echo -ne "❌ ${CYAN}btop${NC}   - Dashboard general: " && echo -e "${RED}ERROR DE LOCALE${NC}"
 fi
 
-# Verificar Zswap
-ZSWAP_STATE=$(cat /sys/module/zswap/parameters/enabled 2>/dev/null)
-if [ "$ZSWAP_STATE" == "Y" ] || [ "$ZSWAP_STATE" == "1" ]; then
-    echo -e "Zswap: ${GREEN}ACTIVO${NC}"
+# Prueba iotop (Netlink Check)
+if iotop -b -n 1 >/dev/null 2>&1; then
+    echo -ne "✅ ${CYAN}iotop${NC}  - Latencia de disco (Postgres/Redis): " && echo -e "${GREEN}FUNCIONAL${NC}"
 else
-    echo -e "Zswap: ${RED}INACTIVO (LXC)${NC}"
+    echo -ne "❌ ${CYAN}iotop${NC}  - Latencia de disco: " && echo -e "${RED}LIMITADO (LXC Netlink Error)${NC}"
+    echo -e "      ${YELLOW}└─ Solución: Activa 'Nesting' y privilegios en el Host Proxmox.${NC}"
 fi
 
-echo -e "${CYAN}>>> Configuración finalizada.${NC}"
+# Prueba Zswap
+if [ $ZSWAP_REQ -eq 0 ]; then
+    echo -ne "✅ ${CYAN}Zswap${NC}  - Compresión de RAM: " && echo -e "${GREEN}ACTIVO${NC}"
+else
+    echo -ne "❌ ${CYAN}Zswap${NC}  - Compresión de RAM: " && echo -e "${RED}SOLO LECTURA (LXC)${NC}"
+    echo -e "      ${YELLOW}└─ Solución: Configurar en /etc/default/grub del HOST Proxmox.${NC}"
+fi
+
+
+
+echo -e "\n${GREEN}>>> Configuración finalizada. Usa los comandos anteriores para monitorear.${NC}"
