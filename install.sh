@@ -26,7 +26,7 @@ curl -fsSL https://deb.nodesource.com/setup_lts.x | bash -
 echo -e "${BLUE}>>> 2. Instalando Stack de Alto Rendimiento...${NC}"
 apt update
 apt install -y nginx redis-server nodejs unzip git g++ make --no-install-recommends \
-    php-fpm php-cli php-mbstring php-xml php-bcmath php-curl php-zip php-pgsql php-redis
+    php-fpm php-cli php-mbstring php-xml php-intl php-gd php-bcmath php-curl php-zip php-pgsql php-redis
 
 # --- 3. INSTALACIÓN SEGURA DE COMPOSER ---
 echo -e "${BLUE}>>> Instalando Composer con verificación de integridad...${NC}"
@@ -98,8 +98,17 @@ sed -i 's/;opcache.validate_timestamps=.*/opcache.validate_timestamps=0/' $PHP_I
 
 # --- 8. NGINX & NGINX-UI ---
 echo -e "${BLUE}>>> Optimizando Nginx e instalando Nginx-UI...${NC}"
+
+# Ajustar conexiones y límite de archivos para el proceso Nginx
 sed -i 's/worker_connections .*/worker_connections 10240;/' /etc/nginx/nginx.conf
-sed -i '/events {/a \    multi_accept on;' /etc/nginx/nginx.conf
+
+# Insertar worker_rlimit_nofile después de worker_processes
+sed -i '/worker_processes/a worker_rlimit_nofile 20000;' /etc/nginx/nginx.conf
+
+# Asegurar multi_accept en el bloque events
+if ! grep -q "multi_accept on;" /etc/nginx/nginx.conf; then
+    sed -i '/events {/a \    multi_accept on;' /etc/nginx/nginx.conf
+fi
 
 systemctl restart php$PHP_VAL-fpm
 systemctl restart nginx
