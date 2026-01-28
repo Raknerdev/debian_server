@@ -143,9 +143,9 @@ Para que `iotop` pueda monitorizar la latencia de disco de procesos como Postgre
 Zswap debe activarse en el **HOST físico**. Una vez habilitado, el Kernel comprimirá automáticamente las páginas de memoria de todos los contenedores antes de tocar el disco.
 
 **En el Host de Proxmox / Servidor Dedicado:**
-1. Edita el archivo de arranque: `sudo nano /etc/default/grub`.
+1. Edita el archivo de arranque:
     ```bash
-    pct start <ID_DEL_CT>
+    sudo nano /etc/default/grub
     ```
 
 2. Busca la línea:
