@@ -29,6 +29,21 @@ Aplica la "sintonía fina" al sistema operativo y servicios para eliminar cuello
 * **Zswap:** Activa la compresión de memoria RAM para evitar latencia de escritura en disco (Swap física).
 * **Tooling Pro:** Instala `btop`, `nload` y otros monitores de tráfico y CPU en tiempo real.
 
+## 📊 Diagnóstico de Rendimiento
+
+El script `monitor.sh` incluye un módulo de diagnóstico que verifica la salud de la optimización de memoria. 
+
+### Interpretación de Resultados:
+* **Zswap ACTIVO:** El servidor está comprimiendo las páginas de memoria inactivas en la RAM. Esto reduce el uso de I/O de disco y acelera Laravel en momentos de alta concurrencia.
+* **Zswap INACTIVO:** El sistema está usando Swap tradicional (lenta) o matará procesos si se agota la RAM (OOM Killer). Sigue la **Guía de Configuración en el Host** si ves este mensaje.
+* **Swap Física:** Zswap actúa como un "filtro" antes de la Swap física. Asegúrate de tener al menos 2GB de Swap configurada en tu sistema (incluso en contenedores LXC, esto se gestiona en los recursos del contenedor en la interfaz de Proxmox).
+
+### Herramientas de Monitoreo en Vivo
+Una vez ejecutado el script, puedes usar:
+1. `btop`: Para una visión general estética y moderna.
+2. `nload`: Monitoriza los picos de tráfico de red de tus 2,000 usuarios.
+3. `iotop -o`: Observa qué proceso (Redis/Postgres) está escribiendo más en disco.
+
 ### 4. `laravel-setup.sh` (Optimización de Aplicación)
 El puente final entre el código y el hardware:
 * **phpredis Nativo:** Configura el cliente de C para Redis en lugar de la librería PHP, bajando la latencia.
@@ -94,3 +109,25 @@ sudo ufw allow 9000/tcp   # Acceso al panel Nginx-UI
 sudo ufw allow 22/tcp
 sudo ufw enable
 ```
+
+## 🧠 Guía de Resolución: Zswap y Entornos Virtualizados
+
+Si al ejecutar `./monitor.sh` recibes errores de `Read-only file system` o `update-grub: command not found`, significa que estás operando en un entorno de virtualización ligera (**LXC / Docker**).
+
+### ¿Por qué ocurre esto?
+Los contenedores comparten el Kernel del host. Por seguridad, un contenedor no puede modificar parámetros globales del Kernel como Zswap.
+
+### Solución para Proxmox / Servidores Dedicados
+Para habilitar la compresión de RAM, debes aplicar la configuración en el **HOST físico**:
+
+1. Edita el archivo de arranque en el host: `sudo nano /etc/default/grub`.
+2. Añade los parámetros: `zswap.enabled=1 zswap.compressor=lzo zswap.zpool=zsmalloc` a la variable `GRUB_CMDLINE_LINUX_DEFAULT`.
+3. Actualiza el cargador: `sudo update-grub`.
+4. Reinicia el servidor físico.
+
+### Beneficios en el Stack
+Al activar Zswap en el host, tu aplicación Laravel se beneficia de:
+* **Menor latencia:** La memoria se comprime en RAM en lugar de escribir en el disco SSD/HDD.
+* **Mayor densidad:** Permite que los 250 procesos de PHP-FPM coexistan mejor en situaciones de picos de tráfico sin colapsar la Swap física.
+
+---
