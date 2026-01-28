@@ -173,7 +173,6 @@ Al activar estas funciones en el Host, tu infraestructura Laravel obtiene mejora
 
 ### Verificación Final
 Vuelve a ejecutar el script dentro de tu contenedor para confirmar que todo esté en verde:
-
     ```bash
     curl -sSL https://raw.githubusercontent.com/Raknerdev/debian_server/main/monitor.sh | sudo bash
     ```
